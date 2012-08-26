@@ -140,6 +140,8 @@ public class DocGenerator
             for (ClassDoc childClass : innerClasses) {
                 writer.print(getModifiers(childClass));
                 writer.println("class " + childClass.name());
+
+                processClass(childClass);
             }
             writer.println();
         }
