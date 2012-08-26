@@ -45,6 +45,31 @@ public class DocGenerator
         tagsWriter.close();
     }
 
+    private String getModifiers(ProgramElementDoc ped)
+    {
+        StringBuilder buffer = new StringBuilder();
+
+        if (ped.isFinal()) {
+            buffer.append("final ");
+        }
+
+        if (ped.isPrivate()) {
+            buffer.append("private ");
+        }
+        else if (ped.isPublic()) {
+            buffer.append("public ");
+        }
+        else if (ped.isProtected()) {
+            buffer.append("protected ");
+        }
+
+        if (ped.isStatic()) {
+            buffer.append("static ");
+        }
+
+        return buffer.toString();
+    }
+
     public void processClass(ClassDoc currentClass)
     throws IOException
     {
@@ -67,9 +92,42 @@ public class DocGenerator
         writer.println(rightPad(classSearchName));
         writer.println();
 
+        // class name
+        writer.print(getModifiers(currentClass));
+
+        if (currentClass.isClass()) {
+            if (currentClass.isAbstract()) {
+                writer.print("abstract ");
+            }
+
+            writer.print("class ");
+        }
+        else if (currentClass.isInterface()) {
+            writer.print("interface ");
+        }
+
         writer.println(currentClass.qualifiedName());
+
+        ClassDoc parentClass = currentClass.superclass();
+        if (parentClass != null) {
+            writer.println("extends " + parentClass.qualifiedName());
+        }
+
+        ClassDoc[] interfaces = currentClass.interfaces();
+        if (interfaces.length > 0) {
+            writer.print("implements ");
+            String delim = "";
+            for (ClassDoc iface : interfaces) {
+                writer.print(delim);
+                writer.print(iface.qualifiedName());
+                delim = ", ";
+            }
+            writer.println();
+        }
+
         writer.println();
 
+        // comment text
         writer.println(parser.parse(currentClass.commentText()));
         writer.println();
 
@@ -79,87 +137,105 @@ public class DocGenerator
 
         ClassDoc[] innerClasses = currentClass.innerClasses();
         if (innerClasses.length > 0) {
-            for (ClassDoc childClass : currentClass.innerClasses()) {
+            for (ClassDoc childClass : innerClasses) {
+                writer.print(getModifiers(childClass));
                 writer.println("class " + childClass.name());
             }
             writer.println();
         }
 
-        for (FieldDoc field : currentClass.fields()) {
-            writer.println(field.type() + " " + field.name() + " = " + field.constantValue());
+        FieldDoc[] fields = currentClass.fields();
+        if (fields.length > 0) {
+            for (FieldDoc field : fields) {
+                writer.print(getModifiers(field));
+                writer.println(field.type() + " " + field.name() + " = " + field.constantValue());
+            }
+            writer.println();
         }
-        writer.println();
 
-        for (ConstructorDoc constructor : currentClass.constructors()) {
-            writer.println(constructor.name() + constructor.signature());
+        ConstructorDoc[] constructors = currentClass.constructors();
+        if (constructors.length > 0) {
+            for (ConstructorDoc constructor : constructors) {
+                writer.print(getModifiers(constructor));
+                writer.println(constructor.name() + constructor.signature());
+            }
+            writer.println();
         }
-        writer.println();
 
-        for (MethodDoc method : currentClass.methods()) {
-            writer.println(method.returnType() + " " + method.name() + method.signature());
+        MethodDoc[] methods = currentClass.methods();
+        if (methods.length > 0) {
+            for (MethodDoc method : methods) {
+                writer.print(getModifiers(method));
+                writer.println(method.returnType() + " " + method.name() + method.signature());
+            }
+            writer.println();
         }
-        writer.println();
 
-        writer.println("==============================================================================");
-        writer.println("Constructors");
-        writer.println();
+        if (constructors.length > 0) {
+            writer.println("==============================================================================");
+            writer.println("Constructors");
+            writer.println();
 
-        for (ConstructorDoc constructor : currentClass.constructors()) {
-            writer.println(constructor.name() + constructor.signature());
+            for (ConstructorDoc constructor : constructors) {
+                writer.println(constructor.name() + constructor.signature());
 
-            Type[] thrownEx = constructor.thrownExceptions();
-            if (thrownEx.length > 0) {
-                writer.print("throws ");
-                String delim = "";
-                for (Type type : thrownEx) {
-                    writer.print(delim + type);
-                    delim = ", ";
+                Type[] thrownEx = constructor.thrownExceptions();
+                if (thrownEx.length > 0) {
+                    writer.print("throws ");
+                    String delim = "";
+                    for (Type type : thrownEx) {
+                        writer.print(delim + type);
+                        delim = ", ";
+                    }
+                    writer.println();
                 }
+
+                writer.println();
+                writer.println(parser.parse(constructor.commentText()));
                 writer.println();
             }
-
-            writer.println();
-            writer.println(parser.parse(constructor.commentText()));
             writer.println();
         }
-        writer.println();
 
-        writer.println("==============================================================================");
-        writer.println("Methods");
-        writer.println();
-
-        int i = 0;
-        for (MethodDoc method : currentClass.methods()) {
-            String methodSearchName = classSearchName + i;
-
-            //writer.println("==============================================================================");
-            writer.println(rightPad(methodSearchName));
+        if (methods.length > 0) {
+            writer.println("==============================================================================");
+            writer.println("Methods");
             writer.println();
 
-            writer.println(method.returnType() + " " + method.name() + method.signature());
+            int i = 0;
+            for (MethodDoc method : methods) {
+                String methodSearchName = classSearchName + i;
 
-            Type[] thrownEx = method.thrownExceptions();
-            if (thrownEx.length > 0) {
-                writer.print("throws ");
-                String delim = "";
-                for (Type type : thrownEx) {
-                    writer.print(delim + type);
-                    delim = ", ";
-                }
+                //writer.println("==============================================================================");
+                writer.println(rightPad(methodSearchName));
                 writer.println();
+
+                writer.print(getModifiers(method));
+                writer.println(method.returnType() + " " + method.name() + method.signature());
+
+                Type[] thrownEx = method.thrownExceptions();
+                if (thrownEx.length > 0) {
+                    writer.print("throws ");
+                    String delim = "";
+                    for (Type type : thrownEx) {
+                        writer.print(delim + type);
+                        delim = ", ";
+                    }
+                    writer.println();
+                }
+
+                writer.println();
+                writer.println(parser.parse(method.commentText()));
+                writer.println();
+
+                TagFileEntry methodTagEntry = new TagFileEntry();
+                methodTagEntry.file = fileName;
+                methodTagEntry.name = method.name();
+                methodTagEntry.excmd = "/" + methodSearchName;
+                tagFile.add(methodTagEntry);
+
+                i++;
             }
-
-            writer.println();
-            writer.println(parser.parse(method.commentText()));
-            writer.println();
-
-            TagFileEntry methodTagEntry = new TagFileEntry();
-            methodTagEntry.file = fileName;
-            methodTagEntry.name = method.name();
-            methodTagEntry.excmd = "/" + methodSearchName;
-            tagFile.add(methodTagEntry);
-
-            i++;
         }
 
         writer.flush();
